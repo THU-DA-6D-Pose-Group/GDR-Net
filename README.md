@@ -11,10 +11,10 @@ Code will be coming soon.
 If you find this useful in your research, please consider citing:
 ```
 @InProceedings{Wang_2021_GDRN,
-author = {Gu Wang, Fabian Manhardt, Federico Tombari, Xiangyang Ji},
-title = {{GDR-Net: Geometry-Guided Direct Regression Network for Monocular 6D Object Pose Estimation}},
-booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-month = {June},
-year = {2021}
+    title = {{GDR-Net}: Geometry-Guided Direct Regression Network for Monocular 6D Object Pose Estimation},
+    author = {Wang, Gu and Manhardt, Fabian and Tombari, Federico and Ji, Xiangyang},
+    booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+    month = {June},
+    year = {2021}
 }
 ```
