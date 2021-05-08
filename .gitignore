@@ -1,0 +1,50 @@
+pretrained_models
+.DS_Store
+# output dir
+/data
+/datasets
+*.so.*
+*.tar.gz
+*.egg-info*
+/output
+instant_test_output
+inference_test_output
+
+
+*.ttf
+*.jpg
+*.png
+*.txt
+
+# compilation and distribution
+__pycache__
+_ext
+*.pyc
+*.so
+detectron2.egg-info/
+build/
+dist/
+
+# pytorch/python/numpy formats
+*.pth
+*.pkl
+*.npy
+
+# ipython/jupyter notebooks
+*.ipynb
+**/.ipynb_checkpoints/
+
+# Editor temporaries
+*.swn
+*.swo
+*.swp
+*~
+
+# Pycharm editor settings
+.idea
+
+# VSCode editor settings
+.vscode
+
+# project dirs
+/models
