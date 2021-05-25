@@ -58,7 +58,7 @@ Example:
 ```
 
 
-Our trained GDR-Net models can be found here ([BaiduNetDisk](https://pan.baidu.com/s/1_MEZJBd67hdxcE8JzmnOtA), [OneDrive](kedv), password: kedv). <br />
+Our trained GDR-Net models can be found here ([BaiduNetDisk](https://pan.baidu.com/s/1_MEZJBd67hdxcE8JzmnOtA), [OneDrive](https://1drv.ms/u/s!Ah83ZdJvIaBnnj88MpeoTjXtge8R?e=hzjxLE), password: kedv). <br />
 <sub><sup>(Note that the models for BOP setup in the supplement were trained using a refactored version of this repo (not compatible), they are slightly better than the models provided here.)</sup></sub>
 
 
