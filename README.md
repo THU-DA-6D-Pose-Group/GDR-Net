@@ -2,7 +2,7 @@
 This repo provides the PyTorch implementation of the work:
 
 **Gu Wang, Fabian Manhardt, Federico Tombari, Xiangyang Ji. GDR-Net: Geometry-Guided Direct Regression Network for Monocular 6D Object Pose Estimation. In CVPR 2021.**
-[[Paper](https://openaccess.thecvf.com/content/CVPR2021/html/Wang_GDR-Net_Geometry-Guided_Direct_Regression_Network_for_Monocular_6D_Object_Pose_CVPR_2021_paper.html)][[ArXiv](http://arxiv.org/abs/2102.12145)][[bibtex](#Citation)]
+[[Paper](https://openaccess.thecvf.com/content/CVPR2021/html/Wang_GDR-Net_Geometry-Guided_Direct_Regression_Network_for_Monocular_6D_Object_Pose_CVPR_2021_paper.html)][[ArXiv](http://arxiv.org/abs/2102.12145)][[Video](https://www.bilibili.com/video/BV1dU4y1G7Ku?share_source=copy_web)][[bibtex](#Citation)]
 
 
 
