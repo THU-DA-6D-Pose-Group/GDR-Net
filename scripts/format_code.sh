@@ -7,10 +7,11 @@
 #  [ "$2" = "$(echo -e "$1\\n$2" | sort -V | head -n1)" ]
 #}
 
+BLACK_VERSION="21.7b0"
 {
-  black --version | grep -E "21.5b0" > /dev/null
+  black --version | grep -E $BLACK_VERSION > /dev/null
 } || {
-  echo "Linter requires 'black==21.5b0' !"
+  echo "Linter requires 'black==$BLACK_VERSION' !"
   exit 1
 }
 
