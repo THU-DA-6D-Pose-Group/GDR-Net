@@ -32,7 +32,6 @@ cur_dir = osp.dirname(osp.abspath(__file__))
 import ref
 from core.utils.my_comm import all_gather, is_main_process, synchronize
 from core.utils.pose_utils import get_closest_rot
-from core.utils.my_visualizer import MyVisualizer, _RED, _GREEN, _BLUE, _GREY
 from core.utils.data_utils import crop_resize_by_warp_affine
 from lib.pysixd import inout, misc
 from lib.pysixd.pose_error import add, adi, arp_2d, re, te
@@ -74,25 +73,6 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
         self.models_3d = [
             inout.load_ply(model_path, vertex_scale=self.data_ref.vertex_scale) for model_path in self.model_paths
         ]
-
-        if cfg.DEBUG:
-            from lib.render_vispy.model3d import load_models
-            from lib.render_vispy.renderer import Renderer
-
-            self.get_gts()
-
-            self.kpts_3d = [misc.get_bbox3d_and_center(m["pts"]) for m in self.models_3d]
-            self.kpts_axis_3d = [misc.get_axis3d_and_center(m["pts"], scale=0.5) for m in self.models_3d]
-
-            self.ren = Renderer(size=(self.data_ref.width, self.data_ref.height), cam=self.data_ref.camera_matrix)
-            self.ren_models = load_models(
-                model_paths=self.data_ref.model_paths,
-                scale_to_meter=0.001,
-                cache_dir=".cache",
-                texture_paths=self.data_ref.texture_paths,
-                center=False,
-                use_cache=True,
-            )
 
         self.eval_precision = cfg.VAL.get("EVAL_PRECISION", False)
         self._logger.info(f"eval precision: {self.eval_precision}")
@@ -215,103 +195,6 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
                 # get pose
                 rot_est = out_rots[inst_i]
                 trans_est = out_transes[inst_i]
-
-                if cfg.DEBUG:  # visualize pose
-                    pose_est = np.hstack([rot_est, trans_est.reshape(3, 1)])
-                    file_name = _input["file_name"][inst_i]
-
-                    if f"{int(scene_id)}/{im_id}" != "9/499":
-                        continue
-
-                    im_ori = mmcv.imread(file_name, "color")
-
-                    bbox = _input["bbox_est"][inst_i].cpu().numpy().copy()
-                    x1, y1, x2, y2 = bbox
-                    # center = np.array([(x1 + x2) / 2, (y1 + y2) / 2])
-                    # scale = max(x2 - x1, y2 - y1) * 1.5
-
-                    test_label = _input["roi_cls"][inst_i]
-                    kpt_3d = self.kpts_3d[test_label]
-                    # kpt_3d = self.kpts_axis_3d[test_label]
-                    kpt_2d = misc.project_pts(kpt_3d, K, rot_est, trans_est)
-
-                    gt_dict = self.gts[cls_name][file_name]
-                    gt_rot = gt_dict["R"]
-                    gt_trans = gt_dict["t"]
-                    kpt_2d_gt = misc.project_pts(kpt_3d, K, gt_rot, gt_trans)
-
-                    maxx, maxy, minx, miny = 0, 0, 1000, 1000
-                    for i in range(len(kpt_2d)):
-                        maxx, maxy, minx, miny = (
-                            max(maxx, kpt_2d[i][0]),
-                            max(maxy, kpt_2d[i][1]),
-                            min(minx, kpt_2d[i][0]),
-                            min(miny, kpt_2d[i][1]),
-                        )
-                        maxx, maxy, minx, miny = (
-                            max(maxx, kpt_2d_gt[i][0]),
-                            max(maxy, kpt_2d_gt[i][1]),
-                            min(minx, kpt_2d_gt[i][0]),
-                            min(miny, kpt_2d_gt[i][1]),
-                        )
-                    center = np.array([(minx + maxx) / 2, (miny + maxy) / 2])
-                    scale = max(maxx - minx, maxy - miny) + 5
-
-                    out_size = 256
-                    zoomed_im = crop_resize_by_warp_affine(im_ori, center, scale, out_size)
-                    save_path = osp.join(
-                        cfg.OUTPUT_DIR, "vis", "{}_{}_{:06d}_no_bbox.png".format(cls_name, scene_id, im_id)
-                    )
-                    mmcv.mkdir_or_exist(osp.dirname(save_path))
-                    mmcv.imwrite(zoomed_im, save_path)
-                    # yapf: disable
-                    kpt_2d = np.array(
-                        [
-                            [(x - (center[0] - scale / 2)) * out_size / scale,
-                             (y - (center[1] - scale / 2)) * out_size / scale]
-                            for [x, y] in kpt_2d
-                        ]
-                    )
-
-                    kpt_2d_gt = np.array(
-                        [
-                            [(x - (center[0] - scale / 2)) * out_size / scale,
-                             (y - (center[1] - scale / 2)) * out_size / scale]
-                            for [x, y] in kpt_2d_gt
-                        ]
-                    )
-                    # yapf: enable
-                    # draw est bbox
-                    linewidth = 3
-                    visualizer = MyVisualizer(zoomed_im[:, :, ::-1], self._metadata)
-                    # zoomed_im_vis = visualizer.draw_axis3d_and_center(
-                    #     kpt_2d, linewidth=linewidth, draw_center=True
-                    # )
-                    # visualizer.draw_bbox3d_and_center(
-                    #     kpt_2d_gt, top_color=_BLUE, bottom_color=_GREY, linewidth=linewidth, draw_center=True
-                    # )
-                    zoomed_im_vis = visualizer.draw_bbox3d_and_center(
-                        kpt_2d, top_color=_GREEN, bottom_color=_GREY, linewidth=linewidth, draw_center=True
-                    )
-                    save_path = osp.join(
-                        cfg.OUTPUT_DIR, "vis", "{}_{}_{:06d}_gt_est.png".format(cls_name, scene_id, im_id)
-                    )
-                    mmcv.mkdir_or_exist(osp.dirname(save_path))
-                    zoomed_im_vis.save(save_path)
-                    print("zoomed_in_vis saved to:", save_path)
-
-                    im_vis = vis_image_bboxes_cv2(im_ori, [bbox], [f"{cls_name}_{score}"])
-
-                    self.ren.clear()
-                    self.ren.draw_background(mmcv.bgr2gray(im_ori, keepdim=True))
-                    self.ren.draw_model(self.ren_models[self.data_ref.objects.index(cls_name)], pose_est)
-                    ren_im, _ = self.ren.finish()
-                    grid_show(
-                        [ren_im[:, :, ::-1], im_vis[:, :, ::-1]],
-                        [f"ren_im_{cls_name}", f"{scene_id}/{im_id}_{score}"],
-                        row=1,
-                        col=2,
-                    )
 
                 output["time"] += time.perf_counter() - start_process_time
 
