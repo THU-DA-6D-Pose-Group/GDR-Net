@@ -13,7 +13,6 @@ pip install plyfile
 
 pip install pycocotools  # or install the nvidia version which is cpp-accelerated
 
-
 pip install cffi
 pip install ninja
 pip install setproctitle
@@ -38,6 +37,10 @@ pip install torchvision
 pip install open3d
 pip install fvcore
 pip install tensorboardX
+
+pip install pytorch-lightning  # 1.6.0.dev0
+pip install fairscale
+pip install deepspeed
 
 pip uninstall pillow
 CC="cc -mavx2" pip install -U --force-reinstall pillow-simd

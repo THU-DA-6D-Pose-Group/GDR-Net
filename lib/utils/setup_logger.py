@@ -1,204 +1,181 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-# modified from detectron2.utils.logger
-# support showing line number and debug mode color
-import functools
-import logging
+#!/usr/bin/env python3
+# -*- coding:utf-8 -*-
+# Copyright (c) 2014-2021 Megvii Inc. All rights reserved.
+# modified by Gu Wang
+import inspect
 import os
-import os.path as osp
 import sys
+import logging
+from loguru import logger
+import time
 from collections import Counter
-from fvcore.common.file_io import PathManager
-from tabulate import tabulate
+import warnings
 from termcolor import colored
-import datetime
+from functools import partial
 
 
-def _get_time_str():
-    # return datetime.now().strftime("%Y%m%d-%H%M%S")
-    return datetime.now().strftime("%Y%m%d_%H%M%S")
+class InterceptHandler(logging.Handler):
+    # https://github.com/Delgan/loguru#entirely-compatible-with-standard-logging
+    def emit(self, record):
+        # Get corresponding Loguru level if it exists
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+
+        # Find caller from where originated the logged message
+        frame, depth = logging.currentframe(), 2
+        while frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back
+            depth += 1
+
+        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
 
-class _ColorfulFormatter(logging.Formatter):
-    def __init__(self, *args, **kwargs):
-        self._root_name = kwargs.pop("root_name") + "."
-        self._abbrev_name = kwargs.pop("abbrev_name", "")
-        if len(self._abbrev_name):
-            self._abbrev_name = self._abbrev_name + "."
-        super(_ColorfulFormatter, self).__init__(*args, **kwargs)
-
-    def formatMessage(self, record):
-        record.name = record.name.replace(self._root_name, self._abbrev_name)
-        log = super(_ColorfulFormatter, self).formatMessage(record)
-        if record.levelno == logging.WARNING:
-            prefix = colored("WRN", "red", attrs=["blink"])
-        elif record.levelno == logging.DEBUG:
-            prefix = colored("DBG", "yellow", attrs=["blink"])
-        elif record.levelno == logging.ERROR or record.levelno == logging.CRITICAL:
-            prefix = colored("ERROR", "red", attrs=["blink", "underline"])
-        else:
-            return log
-        return prefix + " " + log
+def setup_intercept():
+    logging.basicConfig(handlers=[InterceptHandler()], level=0)
 
 
-@functools.lru_cache()  # so that calling setup_my_logger multiple times won't add many handlers
-def setup_my_logger(output=None, distributed_rank=0, *, color=True, name="mylib", abbrev_name=None):
+def get_caller_name(depth=0):
     """
     Args:
-        output (str): a file name or a directory to save log. If None, will not save log file.
-            If ends with ".txt" or ".log", assumed to be a file name.
-            Otherwise, logs will be saved to `output/log.txt`.
-        name (str): the root module name of this logger
-        abbrev_name (str): an abbreviation of the module, to avoid long names in logs.
-            Set to "" to not log the root module in logs.
-            By default, will abbreviate:
-                detectron2 --> d2
-                mylib --> lib
+        depth (int): Depth of caller conext, use 0 for caller depth. Default value: 0.
+
+    Returns:
+        str: module name of the caller
     """
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    logger.propagate = False
+    # the following logic is a little bit faster than inspect.stack() logic
+    frame = inspect.currentframe().f_back
+    # caller = inspect.getframeinfo(inspect.stack()[1][0])
+    # import ipdb; ipdb.set_trace()
+    for _ in range(depth):
+        if frame.f_back is not None:
+            frame = frame.f_back
 
-    if abbrev_name is None:
-        if name == "mylib":
-            abbrev_name = "lib"
-        elif name == "detectron2":
-            abbrev_name = "d2"
+    return frame.f_globals["__name__"]
+
+
+class StreamToLoguru:
+    """stream object that redirects writes to a logger instance."""
+
+    def __init__(self, level="INFO", caller_names=("apex", "pycocotools"), stream_logger=None):
+        """
+        Args:
+            level(str): log level string of loguru. Default value: "INFO".
+            caller_names(tuple): caller names of redirected module.
+                Default value: (apex, pycocotools).
+        """
+        self._logger = logger if stream_logger is None else stream_logger
+        self.level = level
+        self.linebuf = ""
+        self.caller_names = caller_names
+
+    def write(self, buf):
+        full_name = get_caller_name(depth=1)
+        module_name = full_name.rsplit(".", maxsplit=-1)[0]
+        if module_name in self.caller_names:
+            for line in buf.rstrip().splitlines():
+                # use caller level log
+                if module_name in ["__main__"]:
+                    log_depth = -1
+                else:
+                    log_depth = 2
+                if isinstance(self._logger, logging.Logger):
+                    self._logger.log(logging.getLevelName(self.level), line.rstrip())
+                else:
+                    self._logger.opt(depth=log_depth).log(self.level, line.rstrip())
         else:
-            abbrev_name = name
+            sys.__stdout__.write(buf)
 
-    plain_formatter = logging.Formatter(
-        "[%(asctime)s] %(name)s %(levelname)s@%(lineno)d: %(message)s", datefmt="%m%d_%H%M%S"
-    )
-    # stdout logging: master only
+    def flush(self):
+        pass
+
+
+def redirect_sys_output(
+    log_level="INFO", caller_names=("apex", "pycocotools", "__main__"), stdout_logger=None, stderr_logger=None
+):
+    # logging.getLogger("STDOUT")
+    # stderr_logger = None  # logging.getLogger("STDERR")
+    sys.stdout = StreamToLoguru(log_level, caller_names=caller_names, stream_logger=stdout_logger)
+    sys.stderr = StreamToLoguru(log_level, caller_names=caller_names, stream_logger=stderr_logger)
+
+
+def setup_logger(
+    output=None,
+    distributed_rank=0,
+    log_level="DEBUG",
+    redirect_sys_out_callers=("apex", "pycocotools", "__main__"),
+):
+    """setup logger for training and testing.
+    Args:
+        save_dir(str): location to save log file
+        distributed_rank(int): device rank when multi-gpu environment
+        filename (string): log save name.
+        mode(str): log file write mode, `append` or `override`. default is `a`.
+
+    Return:
+        logger instance.
+    """
+
+    def formatter(record, is_file=False):
+        level_name = record["level"].name
+        level_name_map = {
+            "INFO": "",  # "INF",
+            "WARNING": "{}|".format(colored("WRN", "red", attrs=["blink"])),
+            "ERROR": "{}|".format(colored("ERR", "red", attrs=["blink", "underline"])),
+            "CRITICAL": "{}|".format(colored("ERR", "red", attrs=["blink", "underline"])),
+            "DEBUG": "{}|".format(colored("DBG", "yellow", attrs=["blink"])),
+        }
+
+        level_abbr = level_name_map.get(level_name, f"<lvl>{level_name}</lvl>|")
+
+        caller_name = record["name"]
+        # print(record["file"].name, record["file"].path)
+        # print(record)
+        # print(get_caller_name(3))
+        if caller_name.startswith("detectron2."):
+            caller_abbr = caller_name.replace("detectron2.", "d2.")
+        else:
+            caller_abbr = caller_name
+        if is_file:
+            func_name = ":{function}"
+        else:
+            func_name = ""
+        loguru_format = (
+            "<green>{time:YYYYMMDD_HHmmss}</green>|"
+            "%s"
+            "<cyan>%s</cyan>%s@<cyan>{line}</cyan>: <lvl>{message}</lvl>"
+            "\n{exception}"
+        ) % (level_abbr, caller_abbr, func_name)
+        return loguru_format
+
+    logger.remove()  # Remove the pre-configured handler
+    # only keep logger in rank0 process
     if distributed_rank == 0:
-        ch = logging.StreamHandler(stream=sys.stdout)
-        ch.setLevel(logging.DEBUG)
-        if color:
-            formatter = _ColorfulFormatter(
-                colored("[%(asctime)s %(name)s@%(lineno)d]: ", "green") + "%(message)s",
-                datefmt="%m%d_%H%M%S",
-                root_name=name,
-                abbrev_name=str(abbrev_name),
-            )
-        else:
-            formatter = plain_formatter
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
+        logger.add(
+            sys.stderr,
+            format=formatter,
+            level=log_level,
+            enqueue=True,
+        )
 
     # file logging: all workers
     if output is not None:
         if output.endswith(".txt") or output.endswith(".log"):
             filename = output
         else:
-            filename = osp.join(output, "log.txt")
+            filename = os.path.join(output, "log.txt")
         if distributed_rank > 0:
             filename = filename + ".rank{}".format(distributed_rank)
-        PathManager.mkdirs(osp.dirname(filename))
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        logger.add(
+            filename,
+            format=partial(formatter, is_file=True),
+            level=log_level,
+            enqueue=True,
+        )
 
-        fh = logging.StreamHandler(_cached_log_stream(filename))
-        fh.setLevel(logging.DEBUG)
-        fh.setFormatter(plain_formatter)
-        logger.addHandler(fh)
+    setup_intercept()
 
-    return logger
-
-
-# cache the opened file object, so that different calls to `setup_logger`
-# with the same file name can safely write to the same file.
-@functools.lru_cache(maxsize=None)
-def _cached_log_stream(filename):
-    return PathManager.open(filename, "a")
-
-
-"""
-Below are some other convenient logging methods.
-They are mainly adopted from
-https://github.com/abseil/abseil-py/blob/master/absl/logging/__init__.py
-"""
-
-
-def _find_caller():
-    """
-    Returns:
-        str: module name of the caller
-        tuple: a hashable key to be used to identify different callers
-    """
-    frame = sys._getframe(2)
-    while frame:
-        code = frame.f_code
-        if (
-            osp.join("utils", "setup_logger.") not in code.co_filename
-            and osp.join("utils", "logger.") not in code.co_filename
-        ):
-            mod_name = frame.f_globals["__name__"]
-            if mod_name == "__main__":
-                mod_name = "lib"
-            return mod_name, (code.co_filename, frame.f_lineno, code.co_name)
-        frame = frame.f_back
-
-
-_LOG_COUNTER = Counter()
-
-
-def log_first_n(lvl, msg, n=1, *, name=None, key="caller"):
-    """Log only for the first n times.
-
-    Args:
-        lvl (int): the logging level
-        msg (str):
-        n (int):
-        name (str): name of the logger to use. Will use the caller's module by default.
-        key (str or tuple[str]): the string(s) can be one of "caller" or
-            "message", which defines how to identify duplicated logs.
-            For example, if called with `n=1, key="caller"`, this function
-            will only log the first call from the same caller, regardless of
-            the message content.
-            If called with `n=1, key="message"`, this function will log the
-            same content only once, even if they are called from different places.
-            If called with `n=1, key=("caller", "message")`, this function
-            will not log only if the same caller has logged the same message before.
-    """
-    if isinstance(key, str):
-        key = (key,)
-    assert len(key) > 0
-
-    caller_module, caller_key = _find_caller()
-    hash_key = ()
-    if "caller" in key:
-        hash_key = hash_key + caller_key
-    if "message" in key:
-        hash_key = hash_key + (msg,)
-
-    _LOG_COUNTER[hash_key] += 1
-    if _LOG_COUNTER[hash_key] <= n:
-        logging.getLogger(name or caller_module).log(lvl, msg)
-
-
-def log_every_n(lvl, msg, n=1, *, name=None):
-    """Log once per n times.
-
-    Args:
-        lvl (int): the logging level
-        msg (str):
-        n (int):
-        name (str): name of the logger to use. Will use the caller's module by default.
-    """
-    caller_module, key = _find_caller()
-    _LOG_COUNTER[key] += 1
-    if n == 1 or _LOG_COUNTER[key] % n == 1:
-        logging.getLogger(name or caller_module).log(lvl, msg)
-
-
-def create_small_table(small_dict):
-    """Create a small table using the keys of small_dict as headers. This is
-    only suitable for small dictionaries.
-
-    Args:
-        small_dict (dict): a result dictionary of only a few items.
-
-    Returns:
-        str: the table as a string.
-    """
-    keys, values = tuple(zip(*small_dict.items()))
-    table = tabulate([values], headers=keys, tablefmt="pipe", floatfmt=".3f", stralign="center", numalign="center")
-    return table
+    # redirect stdout/stderr to loguru
+    redirect_sys_output("INFO", caller_names=redirect_sys_out_callers)

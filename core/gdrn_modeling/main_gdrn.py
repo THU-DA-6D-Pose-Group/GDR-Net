@@ -1,24 +1,21 @@
 import logging
+from loguru import logger as loguru_logger
 import os
 import os.path as osp
 import sys
 from setproctitle import setproctitle
 import torch
-from torch.nn.parallel import DistributedDataParallel
 
-from detectron2.engine import default_setup, launch
+
 from mmcv import Config
 import cv2
+from pytorch_lightning import seed_everything
+from pytorch_lightning.lite import LightningLite  # import LightningLite
 
 cv2.setNumThreads(0)  # pytorch issue 1355: possible deadlock in dataloader
 # OpenCL may be enabled by default in OpenCV3; disable it because it's not
 # thread safe and causes unwanted GPU memory allocations.
 cv2.ocl.setUseOpenCL(False)
-
-try:
-    import horovod.torch as hvd
-except ImportError:
-    print("You requested to import horovod which is missing or not supported for your OS.")
 
 cur_dir = osp.dirname(osp.abspath(__file__))
 sys.path.insert(0, osp.join(cur_dir, "../../"))
@@ -28,12 +25,11 @@ from core.utils.my_checkpoint import MyCheckpointer
 from core.utils import my_comm as comm
 
 from lib.utils.utils import iprint
-from lib.utils.setup_logger import setup_my_logger
 from lib.utils.time_utils import get_time_str
 
 from core.gdrn_modeling.dataset_factory import register_datasets_in_cfg
-from core.gdrn_modeling.engine import do_test, do_train
-from core.gdrn_modeling.models import GDRN
+from core.gdrn_modeling.engine import GDRN_Lite
+from core.gdrn_modeling.models import GDRN  # noqa
 
 
 logger = logging.getLogger("detectron2")
@@ -60,13 +56,15 @@ def setup(args):
             iprint("Disable AMP for older GPUs")
             cfg.SOLVER.AMP.ENABLED = False
 
-    # NOTE: pop some unwanterd configs in detectron2
+    # NOTE: pop some unwanted configs in detectron2
+    # ---------------------------------------------------------
     cfg.SOLVER.pop("STEPS", None)
     cfg.SOLVER.pop("MAX_ITER", None)
     # NOTE: get optimizer from string cfg dict
     if cfg.SOLVER.OPTIMIZER_CFG != "":
         if isinstance(cfg.SOLVER.OPTIMIZER_CFG, str):
             optim_cfg = eval(cfg.SOLVER.OPTIMIZER_CFG)
+            cfg.SOLVER.OPTIMIZER_CFG = optim_cfg
         else:
             optim_cfg = cfg.SOLVER.OPTIMIZER_CFG
         iprint("optimizer_cfg:", optim_cfg)
@@ -74,6 +72,7 @@ def setup(args):
         cfg.SOLVER.BASE_LR = optim_cfg["lr"]
         cfg.SOLVER.MOMENTUM = optim_cfg.get("momentum", 0.9)
         cfg.SOLVER.WEIGHT_DECAY = optim_cfg.get("weight_decay", 1e-4)
+    # -------------------------------------------------------------------------
     if cfg.get("DEBUG", False):
         iprint("DEBUG")
         args.num_gpus = 1
@@ -94,33 +93,53 @@ def setup(args):
     cfg.EXP_ID = exp_id
     cfg.RESUME = args.resume
     ####################################
-    my_default_setup(cfg, args)
-    # Setup logger
-    setup_for_distributed(is_master=comm.is_main_process())
-    setup_my_logger(output=cfg.OUTPUT_DIR, distributed_rank=comm.get_rank(), name="core")
-    setup_my_logger(output=cfg.OUTPUT_DIR, distributed_rank=comm.get_rank(), name="lib")
     return cfg
 
 
+class Lite(GDRN_Lite):
+    def set_my_env(self, args, cfg):
+        my_default_setup(cfg, args)  # will set os.environ["PYTHONHASHSEED"]
+        seed_everything(int(os.environ["PYTHONHASHSEED"]))
+        setup_for_distributed(is_master=self.is_global_zero)
+
+    def run(self, args, cfg):
+        self.set_my_env(args, cfg)
+
+        logger.info(f"Used GDRN module name: {cfg.MODEL.CDPN.NAME}")
+        model, optimizer = eval(cfg.MODEL.CDPN.NAME).build_model_optimizer(cfg)
+        logger.info("Model:\n{}".format(model))
+
+        # don't forget to call `setup` to prepare for model / optimizer for distributed training.
+        # the model is moved automatically to the right device.
+        model, optimizer = self.setup(model, optimizer)
+
+        if True:
+            # sum(p.numel() for p in model.parameters() if p.requires_grad)
+            params = sum(p.numel() for p in model.parameters()) / 1e6
+            logger.info("{}M params".format(params))
+
+        if args.eval_only:
+            MyCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(cfg.MODEL.WEIGHTS, resume=args.resume)
+            return self.do_test(cfg, model)
+
+        self.do_train(cfg, args, model, optimizer, resume=args.resume)
+        return self.do_test(cfg, model)
+
+
+@loguru_logger.catch
 def main(args):
     cfg = setup(args)
 
-    logger.info(f"Used CDPN module name: {cfg.MODEL.CDPN.NAME}")
-    model, optimizer = eval(cfg.MODEL.CDPN.NAME).build_model_optimizer(cfg)
-    logger.info("Model:\n{}".format(model))
-
-    if args.eval_only:
-        MyCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(cfg.MODEL.WEIGHTS, resume=args.resume)
-        return do_test(cfg, model)
-
-    distributed = comm.get_world_size() > 1
-    if distributed and not args.use_hvd:
-        model = DistributedDataParallel(
-            model, device_ids=[comm.get_local_rank()], broadcast_buffers=False, find_unused_parameters=True
-        )
-
-    do_train(cfg, args, model, optimizer, resume=args.resume)
-    return do_test(cfg, model)
+    logger.info(f"start to train with {args.num_machines} nodes and {args.num_gpus} GPUs")
+    if args.num_gpus > 1 and args.strategy is None:
+        args.strategy = "ddp"
+    Lite(
+        accelerator="gpu",
+        strategy=args.strategy,
+        devices=args.num_gpus,
+        num_nodes=args.num_machines,
+        precision=16 if cfg.SOLVER.AMP.ENABLED else 32,
+    ).run(args, cfg)
 
 
 if __name__ == "__main__":
@@ -133,28 +152,17 @@ if __name__ == "__main__":
     iprint("soft limit: ", soft_limit, "hard limit: ", hard_limit)
     resource.setrlimit(resource.RLIMIT_NOFILE, (soft_limit, hard_limit))
 
-    args = my_default_argument_parser().parse_args()
-    iprint("Command Line Args:", args)
+    parser = my_default_argument_parser()
+    parser.add_argument(
+        "--strategy",
+        default=None,
+        type=str,
+        help="the strategy for parallel training: dp | ddp | ddp_spawn | deepspeed | ddp_sharded",
+    )
+    args = parser.parse_args()
+    iprint("Command Line Args: {}".format(args))
 
     if args.eval_only:
         torch.multiprocessing.set_sharing_strategy("file_system")
 
-    USE_HVD = False
-    if args.use_hvd:
-        if comm.HVD_AVAILABLE:
-            iprint("Using horovod")
-            comm.init_hvd()
-            USE_HVD = True
-            main(args)
-        else:
-            iprint("horovod is not available. Fall back to default setting.")
-
-    if not USE_HVD:
-        launch(
-            main,
-            args.num_gpus,
-            num_machines=args.num_machines,
-            machine_rank=args.machine_rank,
-            dist_url=args.dist_url,
-            args=(args,),
-        )
+    main(args)
