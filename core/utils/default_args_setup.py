@@ -84,7 +84,8 @@ def my_default_setup(cfg, args):
 
     rank = comm.get_rank()
     setup_logger(output_dir, distributed_rank=rank)
-    logging.getLogger("PIL").setLevel(logging.INFO)
+    for _mod in ["PIL", "chardet"]:  # disable DEBUG logs
+        logging.getLogger(_mod).setLevel(logging.INFO)
 
     logger.info("Rank of current process: {}. World size: {}".format(rank, comm.get_world_size()))
     logger.info("Environment info:\n" + collect_env_info())

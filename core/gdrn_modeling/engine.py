@@ -2,6 +2,7 @@ import logging
 import os
 import os.path as osp
 import torch
+
 import mmcv
 import time
 import cv2
@@ -193,6 +194,7 @@ class GDRN_Lite(LightningLite):
         )
         if hasattr(self._precision_plugin, "scaler"):
             extra_ckpt_dict["gradscaler"] = self._precision_plugin.scaler
+
         checkpointer = MyCheckpointer(
             model,
             cfg.OUTPUT_DIR,
@@ -322,4 +324,10 @@ class GDRN_Lite(LightningLite):
 
                             gt_mask_vis = batch["roi_mask"][vis_i].detach().cpu().numpy()
                             tbx_writer.add_image("gt_mask", gt_mask_vis, iteration)
+
+                if (iteration + 1) % periodic_checkpointer.period == 0 or (
+                    periodic_checkpointer.max_iter is not None and (iteration + 1) >= periodic_checkpointer.max_iter
+                ):
+                    if hasattr(optimizer, "consolidate_state_dict"):  # for ddp_sharded
+                        optimizer.consolidate_state_dict()
                 periodic_checkpointer.step(iteration, epoch=epoch)

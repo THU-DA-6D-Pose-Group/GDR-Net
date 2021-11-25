@@ -6,7 +6,6 @@ import sys
 from setproctitle import setproctitle
 import torch
 
-
 from mmcv import Config
 import cv2
 from pytorch_lightning import seed_everything
@@ -123,6 +122,7 @@ class Lite(GDRN_Lite):
             return self.do_test(cfg, model)
 
         self.do_train(cfg, args, model, optimizer, resume=args.resume)
+        torch.multiprocessing.set_sharing_strategy("file_system")
         return self.do_test(cfg, model)
 
 

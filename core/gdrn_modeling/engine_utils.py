@@ -62,7 +62,8 @@ def batch_data(cfg, data, device="cuda", phase="train"):
 
 def batch_data_test(cfg, data, device="cuda"):
     batch = {}
-
+    if not isinstance(data, list):  # bs = 1
+        data = [data]
     # yapf: disable
     roi_keys = ["im_H", "im_W",
                 "roi_img", "inst_id", "roi_coord_2d", "roi_cls", "score", "roi_extent",
