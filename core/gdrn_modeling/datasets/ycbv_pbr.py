@@ -448,7 +448,7 @@ if __name__ == "__main__":
         python -m core/datasets/ycbv_pbr.py ycbv_pbr_train
     """
     from lib.vis_utils.image import grid_show
-    from lib.utils.setup_logger import setup_my_logger
+    from lib.utils.setup_logger import setup_logger
 
     import detectron2.data.datasets  # noqa # add pre-defined metadata
     from lib.vis_utils.image import vis_image_mask_bbox_cv2
@@ -456,7 +456,7 @@ if __name__ == "__main__":
     from core.utils.data_utils import read_image_cv2
 
     print("sys.argv:", sys.argv)
-    logger = setup_my_logger(name="core")
+    setup_logger()
     register_with_name_cfg(sys.argv[1])
     print("dataset catalog: ", DatasetCatalog.list())
 

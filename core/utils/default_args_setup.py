@@ -1,15 +1,17 @@
+import logging
 import argparse
 import os
 import os.path as osp
 import sys
+import mmcv
 from mmcv import DictAction
 import torch
-
+from loguru import logger
 from detectron2.utils.env import seed_all_rng
 from fvcore.common.file_io import PathManager
 from detectron2.utils.collect_env import collect_env_info
-from detectron2.utils.logger import setup_logger
 from core.utils import my_comm as comm
+from lib.utils.setup_logger import setup_logger
 
 
 def my_default_argument_parser(epilog=None):
@@ -78,11 +80,12 @@ def my_default_setup(cfg, args):
     """
     output_dir = cfg.OUTPUT_DIR
     if comm.is_main_process() and output_dir:
-        PathManager.mkdirs(output_dir)
+        mmcv.mkdir_or_exist(output_dir)
 
     rank = comm.get_rank()
-    setup_logger(output_dir, distributed_rank=rank, name="fvcore")
-    logger = setup_logger(output_dir, distributed_rank=rank)
+    setup_logger(output_dir, distributed_rank=rank)
+    for _mod in ["PIL", "chardet"]:  # disable DEBUG logs
+        logging.getLogger(_mod).setLevel(logging.INFO)
 
     logger.info("Rank of current process: {}. World size: {}".format(rank, comm.get_world_size()))
     logger.info("Environment info:\n" + collect_env_info())

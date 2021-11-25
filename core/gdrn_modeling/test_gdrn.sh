@@ -11,6 +11,10 @@ IFS=',' read -ra GPUS <<< "$CUDA_VISIBLE_DEVICES"
 NGPU=${#GPUS[@]}  # echo "${GPUS[0]}"
 echo "use gpu ids: $CUDA_VISIBLE_DEVICES num gpus: $NGPU"
 CKPT=$3
+if [ ! -f "$CKPT" ]; then
+    echo "$CKPT does not exist."
+    exit 1
+fi
 NCCL_DEBUG=INFO
 OMP_NUM_THREADS=1
 MKL_NUM_THREADS=1

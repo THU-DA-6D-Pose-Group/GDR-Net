@@ -442,12 +442,12 @@ class GDRN_DatasetFromList(Base_DatasetFromList):
 
             for _key in roi_keys:
                 if _key in ["roi_img", "roi_coord_2d"]:
-                    dataset_dict[_key] = torch.as_tensor(roi_infos[_key]).contiguous()
+                    dataset_dict[_key] = torch.as_tensor(np.array(roi_infos[_key])).contiguous()
                 elif _key in ["model_info", "scene_im_id", "file_name"]:
                     # can not convert to tensor
                     dataset_dict[_key] = roi_infos[_key]
                 else:
-                    dataset_dict[_key] = torch.tensor(roi_infos[_key])
+                    dataset_dict[_key] = torch.as_tensor(np.array(roi_infos[_key]))
 
             return dataset_dict
         #######################################################################################
@@ -458,7 +458,7 @@ class GDRN_DatasetFromList(Base_DatasetFromList):
 
         # extent
         roi_extent = self._get_extents(dataset_name)[roi_cls]
-        dataset_dict["roi_extent"] = torch.tensor(roi_extent, dtype=torch.float32)
+        dataset_dict["roi_extent"] = torch.as_tensor(np.array(roi_extent), dtype=torch.float32)
 
         # load xyz =======================================================
         xyz_info = mmcv.load(inst_infos["xyz_path"])

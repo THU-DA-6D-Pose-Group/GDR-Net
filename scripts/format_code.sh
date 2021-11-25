@@ -6,7 +6,8 @@
 #vergte() {
 #  [ "$2" = "$(echo -e "$1\\n$2" | sort -V | head -n1)" ]
 #}
-BLACK_VERSION="21.7b0"
+
+BLACK_VERSION="21.11b1"
 {
   black --version | grep -E "$BLACK_VERSION" > /dev/null
 } || {

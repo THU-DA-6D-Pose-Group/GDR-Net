@@ -556,6 +556,8 @@ def gdrn_inference_on_dataset(cfg, model, data_loader, evaluator, amp_test=False
             start_compute_time = time.perf_counter()
             #############################
             # process input
+            if not isinstance(inputs, list):  # bs=1
+                inputs = [inputs]
             batch = batch_data(cfg, inputs, phase="test")
             if evaluator.train_objs is not None:
                 roi_labels = batch["roi_cls"].cpu().numpy().tolist()
