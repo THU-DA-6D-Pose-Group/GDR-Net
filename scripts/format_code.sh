@@ -9,7 +9,7 @@
 
 BLACK_VERSION="21.11b1"
 {
-  black --version | grep -E $BLACK_VERSION > /dev/null
+  black --version | grep -E "$BLACK_VERSION" > /dev/null
 } || {
   echo "Linter requires 'black==$BLACK_VERSION' !"
   exit 1

@@ -58,19 +58,6 @@ class GDRN_Evaluator(DatasetEvaluator):
         self.models_3d = [
             inout.load_ply(model_path, vertex_scale=self.data_ref.vertex_scale) for model_path in self.model_paths
         ]
-        if cfg.DEBUG:
-            from lib.render_vispy.model3d import load_models
-            from lib.render_vispy.renderer import Renderer
-
-            self.ren = Renderer(size=(self.data_ref.width, self.data_ref.height), cam=self.data_ref.camera_matrix)
-            self.ren_models = load_models(
-                model_paths=self.data_ref.model_paths,
-                scale_to_meter=0.001,
-                cache_dir=".cache",
-                texture_paths=self.data_ref.texture_paths,
-                center=False,
-                use_cache=True,
-            )
 
         # eval cached
         if cfg.VAL.EVAL_CACHED or cfg.VAL.EVAL_PRINT_ONLY:
@@ -184,27 +171,6 @@ class GDRN_Evaluator(DatasetEvaluator):
                 rot_est = out_rots[out_i]
                 trans_est = out_transes[out_i]
                 pose_est = np.hstack([rot_est, trans_est.reshape(3, 1)])
-
-                if cfg.DEBUG:  # visualize pose
-                    file_name = _input["file_name"][inst_i]
-
-                    if f"{int(scene_id)}/{im_id}" != "9/47":
-                        continue
-
-                    im_ori = mmcv.imread(file_name, "color")
-                    bbox = _input["bbox_est"][inst_i].cpu().numpy().copy()
-                    im_vis = vis_image_bboxes_cv2(im_ori, [bbox], [f"{cls_name}_{score}"])
-
-                    self.ren.clear()
-                    self.ren.draw_background(mmcv.bgr2gray(im_ori, keepdim=True))
-                    self.ren.draw_model(self.ren_models[self.data_ref.objects.index(cls_name)], pose_est)
-                    ren_im, _ = self.ren.finish()
-                    grid_show(
-                        [ren_im[:, :, ::-1], im_vis[:, :, ::-1]],
-                        [f"ren_im_{cls_name}", f"{scene_id}/{im_id}_{score}"],
-                        row=1,
-                        col=2,
-                    )
 
                 json_results.extend(
                     self.pose_prediction_to_json(
@@ -598,17 +564,6 @@ def gdrn_inference_on_dataset(cfg, model, data_loader, evaluator, amp_test=False
                 obj_names = [evaluator.obj_names[_l] for _l in roi_labels]
                 if all(_obj not in evaluator.train_objs for _obj in obj_names):
                     continue
-
-            # if cfg.DEBUG:
-            #     for i in range(len(batch["roi_cls"])):
-            #         vis_roi_im = batch["roi_img"][i].cpu().numpy().transpose(1,2,0)[:, :, ::-1]
-            #         show_ims = [vis_roi_im]
-            #         show_titles = ["roi_im"]
-            #
-            #         vis_coor2d = batch["roi_coord_2d"][i].cpu().numpy()
-            #         show_ims.extend([vis_coor2d[0], vis_coor2d[1]])
-            #         show_titles.extend(["coord_2d_x", "coord_2d_y"])
-            #         grid_show(show_ims, show_titles, row=1, col=3)
 
             with autocast(enabled=amp_test):
                 out_dict = model(
