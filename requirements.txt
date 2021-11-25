@@ -1,0 +1,33 @@
+cython
+plyfile
+
+pycocotools  # or install the nvidia version which is cpp-accelerated
+
+cffi
+ninja
+setproctitle
+fastfunc
+meshplex
+OpenEXR
+vispy>=0.6.4
+tabulate
+pytest-runner
+pytest
+ipdb
+tqdm
+numba
+mmcv
+imagecorruptions
+pyassimp==4.1.3  # 4.1.4 will cause egl_renderer SegmentFault
+pypng
+albumentations
+transforms3d
+pyquaternion
+torchvision
+open3d
+fvcore
+tensorboardX
+
+pytorch-lightning  # 1.6.0.dev0
+fairscale
+deepspeed
