@@ -98,7 +98,7 @@ def setup(args):
 class Lite(GDRN_Lite):
     def set_my_env(self, args, cfg):
         my_default_setup(cfg, args)  # will set os.environ["PYTHONHASHSEED"]
-        seed_everything(int(os.environ["PYTHONHASHSEED"]))
+        seed_everything(int(os.environ["PYTHONHASHSEED"]), workers=True)
         setup_for_distributed(is_master=self.is_global_zero)
 
     def run(self, args, cfg):
