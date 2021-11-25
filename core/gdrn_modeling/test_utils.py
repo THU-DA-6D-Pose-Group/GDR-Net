@@ -346,7 +346,7 @@ def load_and_print_val_scores_tab(
 if __name__ == "__main__":
     import argparse
     from mmcv import Config, DictAction
-    from lib.utils.setup_logger import setup_my_logger
+    from lib.utils.setup_logger import setup_logger
 
     parser = argparse.ArgumentParser(description="wrapper functions to evaluate with bop toolkit")
     parser.add_argument(
@@ -381,8 +381,7 @@ if __name__ == "__main__":
     else:
         obj_ids = args.obj_ids
     result_dir = args.result_dir
-    setup_my_logger(name="core")
-    setup_my_logger(name="__main__")
+    setup_logger()
     result_names_str = args.result_names
     if "," not in result_names_str:
         result_names = [result_names_str]

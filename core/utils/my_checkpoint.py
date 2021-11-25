@@ -2,6 +2,8 @@ import pickle, os
 from fvcore.common.file_io import PathManager
 from detectron2.checkpoint import DetectionCheckpointer
 from mmcv.runner import _load_checkpoint
+from torch.nn.parallel import DataParallel, DistributedDataParallel
+from pytorch_lightning.lite.wrappers import _LiteModule
 
 
 class MyCheckpointer(DetectionCheckpointer):
@@ -9,6 +11,17 @@ class MyCheckpointer(DetectionCheckpointer):
     uofa/AdelaiDet/blob/master/adet/checkpoint/adet_checkpoint.py Same as
     :class:`DetectronCheckpointer`, but is able to convert models in AdelaiDet,
     such as LPF backbone."""
+
+    def __init__(self, model, save_dir="", *, save_to_disk=None, **checkpointables):
+        # HACK: deal with lite model
+        if isinstance(model, (DistributedDataParallel, DataParallel, _LiteModule)):
+            model = model.module
+        super().__init__(
+            model,
+            save_dir,
+            save_to_disk=save_to_disk,
+            **checkpointables,
+        )
 
     def _load_file(self, filename):
         if filename.endswith(".pkl"):

@@ -663,7 +663,9 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
             f.write("{}\n".format(res_log_tab_str))
 
         if self._distributed:
-            self._logger.warning("\n The current evaluation on multi-gpu is not correct, run with single-gpu instead.")
+            self._logger.warning(
+                "\n The current evaluation on multi-gpu might be incorrect, run with single-gpu instead."
+            )
 
         return {}
 
@@ -841,5 +843,5 @@ class GDRN_EvaluatorCustom(DatasetEvaluator):
         with open(dump_tab_name, "w") as f:
             f.write("{}\n".format(res_log_tab_str))
         if self._distributed:
-            self._logger.warning("\n The current evaluation on multi-gpu is not correct, run with single-gpu instead.")
+            self._logger.warning("\n The current evaluation on multi-gpu might be incorrect, run with single-gpu instead.")
         return {}

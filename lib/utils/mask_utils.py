@@ -36,12 +36,6 @@ def get_edge(mask, bw=1, out_channel=3):
     return edges
 
 
-def read_mask_np(mask_path, dtype=np.uint8):
-    mask = Image.open(mask_path)
-    mask_seg = np.array(mask).astype(dtype)
-    return mask_seg
-
-
 def mask2bbox_xyxy(mask):
     """NOTE: the bottom right point is included"""
     ys, xs = np.nonzero(mask)[:2]
