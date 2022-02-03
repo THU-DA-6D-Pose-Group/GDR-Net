@@ -243,7 +243,7 @@ class GDRN(nn.Module):
                 and (gt_trans_ratio is not None)
                 and (gt_region is not None)
             )
-            mean_re, mean_te = compute_mean_re_te(pred_trans, pred_rot_m, gt_trans, gt_ego_rot)
+            mean_re, mean_te = compute_mean_re_te(pred_trans, pred_ego_rot, gt_trans, gt_ego_rot)
             vis_dict = {
                 "vis/error_R": mean_re,
                 "vis/error_t": mean_te * 100,  # cm
