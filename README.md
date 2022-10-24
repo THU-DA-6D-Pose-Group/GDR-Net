@@ -6,6 +6,7 @@ This repo provides the PyTorch implementation of the work:
 
 
 ## News
+* [2022/10] An enhanced version of this work, [GDRNPP](https://github.com/shanice-l/gdrnpp_bop2022.git) by Liu et al., won most of the [awards](http://cmp.felk.cvut.cz/sixd/workshop_2022/slides/bop_challenge_2022_results.pdf) on [BOP Challenge @ ECCV 2022](https://bop.felk.cvut.cz/challenges/bop-challenge-2022/). Congratulations!
 * [2021/08] An extension of this work, [SO-Pose](https://arxiv.org/abs/2108.08367) by Di et al. (ICCV 2021), has been released ([SO-Pose code](https://github.com/shangbuhuan13/SO-Pose), [mirror](https://github.com/THU-DA-6D-Pose-Group/SO-Pose)).
 
 ## Overview
