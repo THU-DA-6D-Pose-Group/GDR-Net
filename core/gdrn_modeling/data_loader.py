@@ -234,8 +234,7 @@ class GDRN_DatasetFromList(Base_DatasetFromList):
 
         num = min(num, cfg.MODEL.CDPN.PNP_NET.NUM_PM_POINTS)
         for i in range(len(cur_model_points)):
-            keep_idx = np.arange(num)
-            np.random.shuffle(keep_idx)  # random sampling
+            keep_idx = np.random.choice(len(cur_model_points[i]), num, replace=False)
             cur_model_points[i] = cur_model_points[i][keep_idx, :]
 
         self.model_points[dataset_name] = cur_model_points
