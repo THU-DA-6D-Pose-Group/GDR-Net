@@ -6,6 +6,7 @@ This repo provides the PyTorch implementation of the work:
 
 
 ## News
+* [2023/10] An enhanced version of this work, [GPose2023](https://zhangcyg.github.io/figs/GPose_ICCV23.pdf) by Zhang et al., won BOP Challenge @ ICCV 2023. Congratulations!
 * [2022/10] An enhanced version of this work, [GDRNPP](https://github.com/shanice-l/gdrnpp_bop2022.git) by Liu et al., won most of the [awards](http://cmp.felk.cvut.cz/sixd/workshop_2022/slides/bop_challenge_2022_results.pdf) on [BOP Challenge @ ECCV 2022](https://bop.felk.cvut.cz/challenges/bop-challenge-2022/). Congratulations!
 * [2021/08] An extension of this work, [SO-Pose](https://arxiv.org/abs/2108.08367) by Di et al. (ICCV 2021), has been released ([SO-Pose code](https://github.com/shangbuhuan13/SO-Pose), [mirror](https://github.com/THU-DA-6D-Pose-Group/SO-Pose)).
 
@@ -31,7 +32,7 @@ Download the 6D pose datasets (LM, LM-O, YCB-V) from the
 [VOC 2012](https://pjreddie.com/projects/pascal-voc-dataset-mirror/)
 for background images.
 Please also download the `image_sets` and `test_bboxes` from
-here ([BaiduNetDisk](https://pan.baidu.com/s/1gGoZGkuMYxhU9LBKxuSz0g), [OneDrive](https://1drv.ms/u/s!Ah83ZdJvIaBnnjqVy9Eyn0yxDb8i?e=0Q3qRU), password: qjfk).
+here ([BaiduNetDisk](https://pan.baidu.com/s/1gGoZGkuMYxhU9LBKxuSz0g), password: qjfk | [Cloud.THU](https://cloud.tsinghua.edu.cn/d/b2311297acf54f26b429/), password: fMNOASFHW0E8R72357T6mn9).
 
 The structure of `datasets` folder should look like below:
 ```
@@ -46,7 +47,7 @@ datasets/
 ├── VOCdevkit
 ```
 
-* `lm_imgn` comes from [DeepIM](https://github.com/liyi14/mx-DeepIM), which can be downloaded here ([BaiduNetDisk](https://pan.baidu.com/s/1e9SJoqb0EmyqVLEVlbNQIA), [OneDrive](https://1drv.ms/u/s!Ah83ZdJvIaBnoEz5BM4Ho6_W_UUA?e=pj7Y7i), password: vr0i).
+* `lm_imgn` comes from [DeepIM](https://github.com/liyi14/mx-DeepIM), which can be downloaded here ([BaiduNetDisk](https://pan.baidu.com/s/1e9SJoqb0EmyqVLEVlbNQIA), password: vr0i | [Cloud.THU](https://cloud.tsinghua.edu.cn/f/22c4fba9c06f47d3aba4/), password: A097fN8a07ufn0u70).
 
 * `lm_renders_blender` comes from [pvnet-rendering](https://github.com/zju3dv/pvnet-rendering), note that we do not need the fused data.
 
@@ -61,7 +62,7 @@ Example:
 ```
 
 
-Our trained GDR-Net models can be found here ([BaiduNetDisk](https://pan.baidu.com/s/1_MEZJBd67hdxcE8JzmnOtA), [OneDrive](https://1drv.ms/u/s!Ah83ZdJvIaBnnj88MpeoTjXtge8R?e=hzjxLE), password: kedv). <br />
+Our trained GDR-Net models can be found here ([BaiduNetDisk](https://pan.baidu.com/s/1_MEZJBd67hdxcE8JzmnOtA), password: kedv | [Cloud.THU](https://cloud.tsinghua.edu.cn/d/b17100d09a9f4a208549/), password: 0M,oadfu9uIU). <br />
 <sub><sup>(Note that the models for BOP setup in the supplement were trained using a refactored version of this repo (not compatible), they are slightly better than the models provided here.)</sup></sub>
 
 
